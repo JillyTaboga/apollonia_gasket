@@ -1,0 +1,23 @@
+name: apollonia_gasket
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  equations: ^5.0.2
+  flutter:
+    sdk: flutter
+  flutter_signals: ^0.0.1
+  signals: ^4.5.1
+  vector_math: ^2.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
