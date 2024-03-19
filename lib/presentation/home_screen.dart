@@ -1,10 +1,13 @@
 import 'dart:math';
 
 import 'package:apollonia_gasket/domain/circles_entity.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 
-Color currentColorS = randomColor();
+final minRadius = signal(2);
+final isRandomColor = signal(true);
+final currentColorS = signal(randomColor());
 final sizeS = signal<double>(0);
 final firstCircleS = computed(
   () {
@@ -13,7 +16,7 @@ final firstCircleS = computed(
     return CircleEntity(
       center: Complex(center, center),
       bend: 1 / center,
-      color: randomColor(),
+      color: currentColorS.value,
       id: n,
     );
   },
@@ -38,34 +41,117 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return Scaffold(
           backgroundColor: Colors.grey,
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final sizeCalc = min(
-                constraints.maxWidth,
-                constraints.maxHeight,
-              );
-              if (sizeS.value != sizeCalc) {
-                Future(() => sizeS.set(sizeCalc));
-              }
-              final size = sizeS.watch(context);
-              return Center(
-                child: Container(
-                  width: size,
-                  height: size,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                  ),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CircleWidget(
-                        circle: firstCircleS.watch(context),
+          body: Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final sizeCalc = min(
+                      constraints.maxWidth,
+                      constraints.maxHeight,
+                    );
+                    final size = sizeS;
+                    if (size.value != sizeCalc) {
+                      Future(() => size.set(sizeCalc));
+                    }
+                    return Center(
+                      child: Container(
+                        width: size.value,
+                        height: size.value,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Watch(
+                              (context) {
+                                final circle = firstCircleS;
+                                return CircleWidget(
+                                  circle: circle.value,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+              Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Column(
+                      children: [
+                        const Text('Random color'),
+                        Watch.builder(builder: (context) {
+                          final isRandom = isRandomColor;
+                          return Checkbox(
+                            value: isRandom.value,
+                            onChanged: (value) {
+                              isRandomColor.value = (value ?? false);
+                            },
+                          );
+                        }),
+                      ],
+                    ),
+                    const SizedBox(
+                      width: 20,
+                    ),
+                    Column(
+                      children: [
+                        const Text('Cor Selecionada'),
+                        Watch.builder(
+                          builder: (context) {
+                            final color = currentColorS;
+                            return ColorIndicator(
+                              color: color.value,
+                              onSelect: () async {
+                                Color? newColor;
+                                await ColorPicker(
+                                  onColorChanged: (value) {
+                                    newColor = value;
+                                  },
+                                ).showPickerDialog(context);
+                                if (newColor is Color) {
+                                  isRandomColor.set(false);
+                                  currentColorS.set(newColor!);
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      width: 20,
+                    ),
+                    Column(
+                      children: [
+                        const Text('Resetar'),
+                        const SizedBox(
+                          height: 5,
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            sizeS.set(sizeS.value + 1);
+                            await Future.delayed(Durations.short1);
+                            sizeS.set(sizeS.value - 1);
+                          },
+                          child: const Icon(
+                            Icons.refresh,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -86,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final circle1 = CircleEntity(
     center: center,
     bend: 1 / radius,
-    color: currentColorS,
+    color: currentColorS.value,
     id: n,
   );
 
@@ -108,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final circle2 = CircleEntity(
     center: Complex(otherCenter.dx, otherCenter.dy),
     bend: 1 / otherRadius,
-    color: currentColorS,
+    color: currentColorS.value,
     id: n,
   );
   return (circle1: circle1, circle2: circle2);
@@ -128,121 +214,167 @@ class CircleWidget extends StatefulWidget {
 
 class _CircleWidgetState extends State<CircleWidget> {
   @override
+  void initState() {
+    super.initState();
+    circle = widget.circle;
+  }
+
+  @override
   void didUpdateWidget(covariant CircleWidget oldWidget) {
-    if (oldWidget.circle != widget.circle) {
+    if (oldWidget.circle.radius != widget.circle.radius ||
+        oldWidget.circle.center != widget.circle.center) {
+      circle = widget.circle;
       clickPoint = null;
     }
     super.didUpdateWidget(oldWidget);
   }
 
+  late CircleEntity circle;
   Offset? clickPoint;
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: (widget.circle.center.imaginary - widget.circle.radius).abs(),
-      left: (widget.circle.center.real - widget.circle.radius).abs(),
+      top: (circle.center.imaginary - circle.radius).abs(),
+      left: (circle.center.real - circle.radius).abs(),
       child: Container(
         clipBehavior: Clip.antiAlias,
-        width: widget.circle.radius * 2,
-        height: widget.circle.radius * 2,
+        width: circle.radius * 2,
+        height: circle.radius * 2,
         decoration: BoxDecoration(
-          color: widget.circle.color,
+          color: circle.color,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.black),
         ),
         child: Material(
           color: Colors.transparent,
-          child: InkWell(
-            onTapUp: (details) async {
-              currentColorS = (randomColor());
+          child: GestureDetector(
+            onPanStart: (details) {
+              setState(() {
+                if (isRandomColor.value) {
+                  currentColorS.set(randomColor());
+                }
+                setState(() {
+                  clickPoint = details.localPosition;
+                });
+              });
+            },
+            onPanUpdate: (details) {
               setState(() {
                 clickPoint = details.localPosition;
               });
             },
-            child: clickPoint != null
-                ? Builder(builder: (context) {
-                    //Cria os dois círculo baseados no clique
-                    final circles = calcCircles(
-                      widget.circle.radius,
-                      clickPoint!,
-                    );
-                    //Cria o círculo externo com curvatura invertida
-                    final newExternalCircle = CircleEntity(
-                      center:
-                          Complex(widget.circle.radius, widget.circle.radius),
-                      bend: -widget.circle.bend,
-                      color: currentColorS,
-                      id: n,
-                    );
-                    //Lista de círculos que serão subcírculos deste círculo
-                    List<CircleEntity> subCircles = [];
-                    //Fila de tripla de círculos para que seja autogerado os circulos tangencias
-                    List<List<CircleEntity>> queue = [
-                      [newExternalCircle, circles.circle1, circles.circle2],
-                    ];
-                    while (queue.isNotEmpty) {
-                      final c1 = queue[0][0];
-                      final c2 = queue[0][1];
-                      final c3 = queue[0][2];
-                      if (c1.isTangent(c2) &&
-                          c1.isTangent(c3) &&
-                          c2.isTangent(c3)) {
-                        //Usa o teorema de descartes para achar a curvatura do quarto círculo adjacente aos 3
-                        final newsRadius = descartes(
-                          c1,
-                          c2,
-                          c3,
-                        );
-                        //Usa o teorema complexo de descartes para achar o centro do quarto círculo adjacente aos 3
-                        final newCircles = complexDescartes(
-                          c1,
-                          c2,
-                          c3,
-                          newsRadius,
-                        );
-                        for (final newCircle in newCircles) {
-                          //Valida o círculos, uma vez que podem ter raio infito ou "encapsular" outro círculo
-                          if (!subCircles.contains(newCircle) &&
-                              newCircle.radius != firstCircleS.value.radius &&
-                              validQuadriplet(
-                                c1,
-                                c2,
-                                c3,
-                                newCircle,
-                              )) {
-                            subCircles.add(newCircle);
-                            queue.add([c1, c2, newCircle]);
-                            queue.add([c2, c3, newCircle]);
-                            queue.add([c3, c1, newCircle]);
-                          }
-                        }
-                        queue.removeAt(0);
-                      } else {
-                        queue.removeAt(0);
-                      }
-                    }
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CircleWidget(
-                          circle: circles.circle1,
-                        ),
-                        CircleWidget(
-                          circle: circles.circle2,
-                        ),
-                        for (final subCircle in subCircles)
-                          CircleWidget(
-                            circle: subCircle,
-                          ),
-                      ],
-                    );
-                  })
-                : const SizedBox.expand(),
+            child: InkWell(
+              onTapUp: (details) async {
+                setState(() {
+                  if (isRandomColor.value) {
+                    currentColorS.set(randomColor());
+                  }
+                  setState(() {
+                    clickPoint = details.localPosition;
+                  });
+                });
+              },
+              child: clickPoint != null
+                  ? SubCirclesWidget(
+                      topCircle: circle,
+                      clickPoint: clickPoint,
+                    )
+                  : const SizedBox.expand(),
+            ),
           ),
         ),
       ),
     );
+  }
+}
+
+class SubCirclesWidget extends StatelessWidget {
+  const SubCirclesWidget({
+    super.key,
+    required this.topCircle,
+    required this.clickPoint,
+  });
+
+  final Offset? clickPoint;
+  final CircleEntity topCircle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(builder: (context) {
+      //Cria os dois círculo baseados no clique
+      final circles = calcCircles(
+        topCircle.radius,
+        clickPoint!,
+      );
+      //Cria o círculo externo com curvatura invertida
+      final newExternalCircle = CircleEntity(
+        center: Complex(topCircle.radius, topCircle.radius),
+        bend: -topCircle.bend,
+        color: currentColorS.value,
+        id: n,
+      );
+      //Lista de círculos que serão subcírculos deste círculo
+      List<CircleEntity> subCircles = [];
+      //Fila de tripla de círculos para que seja autogerado os circulos tangencias
+      List<List<CircleEntity>> queue = [
+        [newExternalCircle, circles.circle1, circles.circle2],
+      ];
+      while (queue.isNotEmpty) {
+        final c1 = queue[0][0];
+        final c2 = queue[0][1];
+        final c3 = queue[0][2];
+        if (c1.isTangent(c2) && c1.isTangent(c3) && c2.isTangent(c3)) {
+          //Usa o teorema de descartes para achar a curvatura do quarto círculo adjacente aos 3
+          final newsRadius = descartes(
+            c1,
+            c2,
+            c3,
+          );
+          //Usa o teorema complexo de descartes para achar o centro do quarto círculo adjacente aos 3
+          final newCircles = complexDescartes(
+            c1,
+            c2,
+            c3,
+            newsRadius,
+          );
+          for (final newCircle in newCircles) {
+            //Valida o círculos, uma vez que podem ter raio infito ou "encapsular" outro círculo
+            if (!subCircles.contains(newCircle) &&
+                newCircle.radius != firstCircleS.value.radius &&
+                validQuadriplet(
+                  c1,
+                  c2,
+                  c3,
+                  newCircle,
+                )) {
+              subCircles.add(newCircle);
+              queue.add([c1, c2, newCircle]);
+              queue.add([c2, c3, newCircle]);
+              queue.add([c3, c1, newCircle]);
+            }
+          }
+          queue.removeAt(0);
+        } else {
+          queue.removeAt(0);
+        }
+      }
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          CircleWidget(
+            circle: circles.circle1,
+          ),
+          CircleWidget(
+            circle: circles.circle2,
+          ),
+          for (final subCircle in subCircles)
+            CircleWidget(
+              circle: subCircle,
+            ),
+        ],
+      );
+    });
   }
 }
 
@@ -269,10 +401,13 @@ List<double> descartes(
       2;
   final r1 = c1.bend + c2.bend + c3.bend + square;
   final r2 = c1.bend + c2.bend + c3.bend - square;
-  return [r1, r2];
+  return [
+    if ((1 / r1).abs() > minRadius.value) r1,
+    if ((1 / r2).abs() > minRadius.value) r2,
+  ];
 }
 
-//Calcula o centro do 4 círculo tangencia
+//Calcula o centro do 4 círculo tangencial
 List<CircleEntity> complexDescartes(
   CircleEntity c1,
   CircleEntity c2,
@@ -293,23 +428,23 @@ List<CircleEntity> complexDescartes(
     final circle1 = CircleEntity(
       center: center1,
       bend: k4,
-      color: currentColorS,
+      color: currentColorS.value,
       id: n,
     );
     n++;
     final circle2 = CircleEntity(
       center: center2,
       bend: k4,
-      color: currentColorS,
+      color: currentColorS.value,
       id: n,
     );
     circles.addAll([
-      if (circle1.radius > 2 &&
+      if (circle1.radius > minRadius.value &&
           (circle1.radius < c1.radius &&
               circle1.radius < c2.radius &&
               circle1.radius < c3.radius))
         circle1,
-      if (circle2.radius > 2 &&
+      if (circle2.radius > minRadius.value &&
           (circle2.radius < c1.radius &&
               circle2.radius < c2.radius &&
               circle2.radius < c3.radius))

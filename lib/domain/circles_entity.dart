@@ -50,12 +50,11 @@ class CircleEntity {
 
     return other is CircleEntity &&
         other.center == center &&
-        other.bend == bend &&
-        other.color == color;
+        other.bend == bend;
   }
 
   @override
-  int get hashCode => center.hashCode ^ bend.hashCode ^ color.hashCode;
+  int get hashCode => center.hashCode ^ bend.hashCode;
 }
 
 extension ComplexT on Complex {
@@ -124,4 +123,16 @@ class Complex {
   Complex operator +(Complex other) => add(other);
   Complex operator -(Complex other) => sub(other);
   Complex operator *(Complex other) => mult(other);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Complex &&
+        other.real == real &&
+        other.imaginary == imaginary;
+  }
+
+  @override
+  int get hashCode => real.hashCode ^ imaginary.hashCode;
 }
