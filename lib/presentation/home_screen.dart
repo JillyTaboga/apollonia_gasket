@@ -52,7 +52,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                     final size = sizeS;
                     if (size.value != sizeCalc) {
-                      Future(() => size.set(sizeCalc));
+                      Future(() {
+                        size.set(sizeCalc);
+                        setState(() {});
+                      });
                     }
                     return Center(
                       child: Container(

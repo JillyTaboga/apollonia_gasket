@@ -32,4 +32,6 @@ O projeto utilizou Signals para controle de estado e uma simples divisão das en
 - O projeto foi testado e é mais funcional pensando em uma aplicação windows
 - Mas também roda em plataforma web (exemplo abaixo) contudo em navegadores móbiles a experiência é bem reduzida, tanto pelo tamanho da interface, quanto desempenho e a falta da finesse do mouse
 
+[Site Exemplo](https://apolloniangasket.web.app)
+
 ![PrintScreen](descater.png "Screenshot")
